@@ -3,8 +3,10 @@ package main
 import (
 	"log/slog"
 	"os"
+	"os/signal"
 	"sso/internal/app"
 	"sso/internal/config"
+	"syscall"
 
 	"github.com/jacute/prettylogger"
 )
@@ -29,7 +31,15 @@ func main() {
 		cfg.StoragePath,
 		cfg.TokenTTL,
 	)
-	application.GrpcServer.MustRun()
+	go application.GrpcServer.MustRun()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+	sign := <-stop
+
+	application.GrpcServer.Stop()
+
+	log.Info("Application stopped", slog.String("signal", sign.String()))
 }
 
 func setupPrettyLogger(env string) *slog.Logger {

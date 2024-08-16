@@ -35,17 +35,17 @@ func (a *App) MustRun() {
 
 func (a *App) Run() error {
 	const op = "grpcapp.Run"
-	logAttrs := []any{
+	log := a.log.With(
 		slog.String("op", op),
 		slog.Int("port", a.port),
-	}
+	)
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	a.log.Info("gRPC server listening", logAttrs...)
+	log.Info("gRPC server listening")
 
 	if err := a.grpcServer.Serve(l); err != nil {
 		return fmt.Errorf("%s: %w", op, err)

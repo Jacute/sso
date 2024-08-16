@@ -1,13 +1,13 @@
 module sso
 
-go 1.22.2
+go 1.22.4
 
 require (
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-migrate/migrate/v4 v4.17.1
 	github.com/ilyakaznacheev/cleanenv v1.5.0
-	github.com/jacute/prettylogger v0.0.5
+	github.com/jacute/prettylogger v0.0.6
 	github.com/jacute/protos v0.0.3
 	github.com/mattn/go-sqlite3 v1.14.22
 	golang.org/x/crypto v0.23.0

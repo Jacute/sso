@@ -41,6 +41,7 @@ type AppProvider interface {
 
 var (
 	ErrInvalidCredentials = errors.New("Invalid credentials")
+	ErrInvalidAppID       = errors.New("Invalid app ID")
 )
 
 func New(
@@ -67,54 +68,43 @@ func (a *Auth) Login(
 	appID int,
 ) (string, error) {
 	const op = "auth.Login"
-
-	attrs := []any{
+	log := a.log.With(
 		slog.String("op", op),
 		slog.String("email", email),
-	}
-	resultAttrs := make([]any, len(attrs)+1)
-	copy(resultAttrs, attrs)
-	a.log.Info("Attempting to login user", attrs...)
+	)
+	log.Info("Attempting to login user")
 
 	user, err := a.userProvider.User(ctx, email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
-			a.log.Warn("User not found", attrs...)
+			log.Warn("User not found")
 			return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 		}
-		resultAttrs[len(resultAttrs)-1] = prettylogger.Err(err)
-		a.log.Error("Failed to get user", resultAttrs...)
-
+		log.Error("Failed to get user", prettylogger.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword(user.PasswordHash, []byte(password)); err != nil {
-		resultAttrs[len(resultAttrs)-1] = prettylogger.Err(err)
-		a.log.Info("Invalid password", resultAttrs...)
-
+		log.Info("Invalid password", prettylogger.Err(err))
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
 	app, err := a.appProvider.App(ctx, appID)
 	if err != nil {
 		if errors.Is(err, storage.ErrAppNotFound) {
-			resultAttrs[len(resultAttrs)-1] = prettylogger.Err(err)
-			a.log.Info("Invalid app_id", resultAttrs...)
-
-			return "", fmt.Errorf("%s: %w", op, storage.ErrAppNotFound)
+			log.Info("Invalid app_id", prettylogger.Err(err))
+			return "", fmt.Errorf("%s: %w", op, ErrInvalidAppID)
 		}
-		resultAttrs[len(resultAttrs)-1] = prettylogger.Err(err)
-		a.log.Info("Failed to get app", resultAttrs...)
-
+		log.Info("Failed to get app", prettylogger.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	a.log.Info("User logged in successfully", attrs...)
+	log.Info("User logged in successfully")
 
 	token, err := jwt.NewToken(user, app, a.tokenTTL)
 	if err != nil {
-		a.log.Error("Failed to generate token", prettylogger.Err(err))
-		return "", fmt.Errorf("%s: %w", op, a.tokenTTL)
+		log.Error("Failed to generate token", prettylogger.Err(err))
+		return "", fmt.Errorf("%s: %s", op, a.tokenTTL)
 	}
 
 	return token, nil
@@ -128,33 +118,28 @@ func (a *Auth) Register(
 ) (int64, error) {
 	const op = "auth.Register"
 
-	attrs := []any{
+	log := a.log.With(
 		slog.String("op", op),
 		slog.String("email", email),
-	}
-	resultAttrs := make([]any, len(attrs)+1)
-	copy(resultAttrs, attrs)
-	a.log.Info("Registering user", attrs...)
+	)
+	log.Info("Registering user")
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		resultAttrs[len(resultAttrs)-1] = prettylogger.Err(err)
-		a.log.Error("Failed to generate password hash", resultAttrs...)
+		log.Error("Failed to generate password hash", prettylogger.Err(err))
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	userID, err := a.userSaver.SaveUser(ctx, email, passwordHash)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExists) {
-			a.log.Warn("User already exists", attrs...)
+			log.Warn("User already exists", prettylogger.Err(err))
 			return 0, fmt.Errorf("%s: %w", op, storage.ErrUserExists)
 		}
-		resultAttrs[len(resultAttrs)-1] = prettylogger.Err(err)
-		a.log.Error("Failed to save user", resultAttrs...)
+		log.Error("Failed to save user", prettylogger.Err(err))
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
-	resultAttrs[len(resultAttrs)-1] = slog.Int64("user_id", userID)
-	a.log.Info("User registered", resultAttrs...)
+	log.Info("User registered", slog.Int64("user_id", userID))
 
 	return userID, nil
 }
@@ -162,19 +147,19 @@ func (a *Auth) Register(
 func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	const op = "auth.IsAdmin"
 
-	attrs := []any{
+	log := a.log.With(
 		slog.String("op", op),
 		slog.Int64("user_id", userID),
-	}
+	)
 
-	a.log.Info("Checking if user is admin", attrs...)
+	log.Info("Checking if user is admin")
 	isAdmin, err := a.userProvider.IsAdmin(ctx, userID)
 	if err != nil {
-		a.log.Error("Failed to check if user is admin", attrs...)
+		log.Error("Failed to check if user is admin")
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
-	a.log.Info("Checked if user is admin", slog.Bool("is_admin", isAdmin))
+	log.Info("Checked if user is admin", slog.Bool("is_admin", isAdmin))
 
 	return isAdmin, nil
 }

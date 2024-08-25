@@ -9,7 +9,7 @@ import (
 type LoginValidator struct {
 	Email    string `validate:"required,email"`
 	Password string `validate:"required,min=8"`
-	AppID    int    `validate:"required,gt=0"`
+	AppID    int32  `validate:"required,gt=0"`
 }
 
 func (v *LoginValidator) Validate() error {
@@ -17,7 +17,7 @@ func (v *LoginValidator) Validate() error {
 	return validate.Struct(v)
 }
 
-func ToLoginValidator(email string, password string, appId int) *LoginValidator {
+func ToLoginValidator(email string, password string, appId int32) *LoginValidator {
 	return &LoginValidator{
 		Email:    email,
 		Password: password,
@@ -63,9 +63,11 @@ func GetDetailedError(err error) string {
 
 		switch firstError.Tag() {
 		case "min":
-			return fmt.Sprintf("Field '%s' require minimum %s characters\n", firstError.Tag(), firstError.Param())
+			return fmt.Sprintf("Field '%s' require minimum %s characters\n", firstError.Field(), firstError.Param())
+		case "required":
+			return fmt.Sprintf("Field '%s' is required\n", firstError.Field())
 		default:
-			return fmt.Sprintf("Field '%s' is invalid\n", firstError.Tag())
+			return fmt.Sprintf("Field '%s' is invalid\n", firstError.Field())
 		}
 	}
 	return "Internal error"

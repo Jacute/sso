@@ -36,10 +36,12 @@ type UserProvider interface {
 }
 
 type AppProvider interface {
-	App(ctx context.Context, appID int) (models.App, error)
+	App(ctx context.Context, appID int32) (models.App, error)
 }
 
 var (
+	ErrUserNotFound       = errors.New("User not found")
+	ErrUserExists         = errors.New("User already exists")
 	ErrInvalidCredentials = errors.New("Invalid credentials")
 	ErrInvalidAppID       = errors.New("Invalid app ID")
 )
@@ -65,7 +67,7 @@ func (a *Auth) Login(
 	ctx context.Context,
 	email string,
 	password string,
-	appID int,
+	appID int32,
 ) (string, error) {
 	const op = "auth.Login"
 	log := a.log.With(
@@ -134,7 +136,7 @@ func (a *Auth) Register(
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExists) {
 			log.Warn("User already exists", prettylogger.Err(err))
-			return 0, fmt.Errorf("%s: %w", op, storage.ErrUserExists)
+			return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
 		}
 		log.Error("Failed to save user", prettylogger.Err(err))
 		return 0, fmt.Errorf("%s: %w", op, err)
@@ -155,6 +157,10 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	log.Info("Checking if user is admin")
 	isAdmin, err := a.userProvider.IsAdmin(ctx, userID)
 	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			log.Warn("User not found")
+			return false, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+		}
 		log.Error("Failed to check if user is admin")
 		return false, fmt.Errorf("%s: %w", op, err)
 	}

@@ -85,7 +85,7 @@ func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	err := row.Scan(&isAdmin)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
+			return false, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
 		}
 
 		return false, fmt.Errorf("%s: %w", op, err)
@@ -94,7 +94,7 @@ func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	return isAdmin, nil
 }
 
-func (s *Storage) App(ctx context.Context, appID int) (models.App, error) {
+func (s *Storage) App(ctx context.Context, appID int32) (models.App, error) {
 	const op = "storage.sqlite.App"
 
 	app := models.App{}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"sso/internal/lib/validators"
 	"sso/internal/services/auth"
-	"sso/internal/storage"
 
 	ssov1 "github.com/jacute/protos/gen/go/sso"
 	"google.golang.org/grpc"
@@ -18,7 +17,7 @@ type Auth interface {
 		ctx context.Context,
 		email string,
 		password string,
-		appID int,
+		appID int32,
 	) (token string, err error)
 	Register(
 		ctx context.Context,
@@ -43,7 +42,7 @@ func Register(gRPC *grpc.Server, auth Auth) {
 func (s *serverAPI) Login(ctx context.Context, req *ssov1.LoginRequest) (*ssov1.LoginResponse, error) {
 	email := req.GetEmail()
 	password := req.GetPassword()
-	appID := int(req.GetAppId())
+	appID := req.GetAppId()
 
 	validator := validators.ToLoginValidator(email, password, appID)
 	if err := validator.Validate(); err != nil {
@@ -72,7 +71,7 @@ func (s *serverAPI) Register(ctx context.Context, req *ssov1.RegisterRequest) (*
 
 	userID, err := s.auth.Register(ctx, email, password)
 	if err != nil {
-		if errors.Is(err, storage.ErrUserExists) {
+		if errors.Is(err, auth.ErrUserExists) {
 			return nil, status.Error(codes.AlreadyExists, "User already exists")
 		}
 		return nil, status.Error(codes.Internal, "Internal error")
@@ -91,6 +90,9 @@ func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ss
 
 	isAdmin, err := s.auth.IsAdmin(ctx, userID)
 	if err != nil {
+		if errors.Is(err, auth.ErrInvalidAppID) {
+			return nil, status.Error(codes.NotFound, "User not found")
+		}
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 

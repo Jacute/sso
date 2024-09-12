@@ -1,0 +1,6 @@
+env: "prod"
+storage_path: "./storage/sso.db"
+token_ttl: 720h # 30 days
+grpc:
+  port: 8081
+  timeout: 10h
